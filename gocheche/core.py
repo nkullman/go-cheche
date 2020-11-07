@@ -1,7 +1,7 @@
 import argparse
 import datetime
 import logging
-from typing import Dict
+from typing import Dict, Tuple
 
 import geocoder
 
@@ -43,4 +43,40 @@ class Customer():
         self.visit = visit
         self.delivery_day = delivery_day
         self.delivery_order = delivery_order
+        self.out_dict = {
+            'Name': self.name,
+            'ID': self.cust_id,
+            'Address': self.address,
+        }
+
+    def get_coords(self, lat_first: bool = False) -> Tuple[float, float]:
+        """Returns the customer's coordinates.
+
+        Inputs:
+
+            lat_first: Whether the tuple should be returned as (lat, lon) instead of
+                the default (lon, lat).
+
+        """
+        return (self.lat, self.lon) if lat_first else (self.lon, self.lat)
+    
+
+class RunParams():
+    """Defines a body of parameters controlling the run of the routing engine."""
+
+    def __init__(
+        self,
+        constraints: Dict,
+        n_routes: int,
+    ):
+        """Creates a RunParams object.
         
+        Fields:
+
+            constraints: constraints that the routing solution must ensure
+            n_routes: number of routes in the solution.
+
+        """
+
+        self.constraints = constraints
+        self.n_routes = n_routes
