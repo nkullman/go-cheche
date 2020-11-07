@@ -35,3 +35,9 @@ data/api_key.py
 
 # Logs
 *.log
+
+# Our webdriver, used to save our map as an image
+chromedriver.exe
+
+# Notes to self
+notes.md
