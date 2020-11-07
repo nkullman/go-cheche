@@ -1,0 +1,54 @@
+{
+    "solution": [
+        {
+            "route": [
+                {
+                    "Name": "CheChe Depot (Kubota Gardens)",
+                    "ID": "000000",
+                    "Address": "9817 55th Ave S, Seattle, WA 98118"
+                },
+                {
+                    "Name": "CheChe Top Google Address",
+                    "ID": "000001",
+                    "Address": "821 2nd Ave #402, Seattle, WA 98104"
+                },
+                {
+                    "Name": "Alissa Rothchild",
+                    "ID": "000003",
+                    "Address": "3123 35th Ave S, Seattle, WA 98144"
+                },
+                {
+                    "Name": "CheChe Depot (Kubota Gardens)",
+                    "ID": "000000",
+                    "Address": "9817 55th Ave S, Seattle, WA 98118"
+                }
+            ],
+            "duration": 2418
+        },
+        {
+            "route": [
+                {
+                    "Name": "CheChe Depot (Kubota Gardens)",
+                    "ID": "000000",
+                    "Address": "9817 55th Ave S, Seattle, WA 98118"
+                },
+                {
+                    "Name": "Nick Kullman",
+                    "ID": "000004",
+                    "Address": "520 2nd Ave W #406, Seattle, WA 98119"
+                },
+                {
+                    "Name": "Bill Gates",
+                    "ID": "000002",
+                    "Address": "500 5th Ave N, Seattle, WA 98109"
+                },
+                {
+                    "Name": "CheChe Depot (Kubota Gardens)",
+                    "ID": "000000",
+                    "Address": "9817 55th Ave S, Seattle, WA 98118"
+                }
+            ],
+            "duration": 2511
+        }
+    ]
+}

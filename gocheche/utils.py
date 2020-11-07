@@ -3,11 +3,11 @@ import ast
 import json
 import logging
 
-from openrouteservice import client, distance_matrix
+from openrouteservice import client, directions, distance_matrix
 import geocoder
 
 from data import address_fixes, api_key
-from gocheche.core import Customer
+from gocheche.core import Customer, RunParams
 
 DEPOT_CUST_ID = "000000"
 OSR_API_KEY = api_key.MY_OSR_API_KEY
@@ -20,7 +20,6 @@ def groom_address(address: str) -> str:
     # would be more robust.
     return address_fixes.addr_mappings.get(address, address)
     
-
 
 def get_latlon(address: str) -> Tuple[float, float]:
     """Retrieves (latitude, longitude) for the given customer."""
@@ -49,14 +48,16 @@ def write_json(obj_to_write: Any, filename: str):
     """Writes the object to a JSON file."""
     
     with open(filename, 'w') as json_file:
-        json.dump(obj_to_write, json_file)
+        json.dump(obj_to_write, json_file, indent=4)
 
 
 def load_visits(visits_filename: str) -> List:
     """Loads the file of customer IDs to visit into a *sorted* list."""
     
     visits = load_json(visits_filename)['visit']
-    visits.append(DEPOT_CUST_ID)
+    visits.insert(0, DEPOT_CUST_ID)
+    # ^^ NOTE: Other methods (router.create_model_data) assume depot is in the first slot.
+    # Beware of changing this in the future.
     if len(visits) != len(set(visits)):
         return ValueError("Some customers are duplicated in the visits file.")
     return sorted(visits)
@@ -92,7 +93,13 @@ def load_customers(customers_filename: str, to_visit: List[str], keep_all: bool 
     
     if updated:
         logging.info(f"Writing an updated customers file: {customers_filename}")
-        write_json({'customers': customers}, customers_filename)
+        to_write = {
+            'customers': [
+                {k:v for k,v in customer.items() if k != 'visit'} # Don't want to write the to-visit field to file
+                for customer in customers
+            ]
+        }
+        write_json(to_write, customers_filename)
 
     if keep_all:
         return {
@@ -103,7 +110,7 @@ def load_customers(customers_filename: str, to_visit: List[str], keep_all: bool 
         return {
             customer['cust_id']: Customer(**customer)
             for customer in customers
-            if customer['visit']
+            if customer['cust_id'] in to_visit
         }
 
 
@@ -135,7 +142,7 @@ def load_distances(distances_filename: str) -> Dict[Tuple[str, str], float]:
 
 def load_params(params_filename: str) -> Dict:
     """Loads parameters and constraints from file."""
-    return load_json(params_filename)
+    return RunParams(**load_json(params_filename))
 
 
 def _ensure_no_missing_customers(visits: List[str], customers: Dict[str, Customer]):
@@ -169,7 +176,7 @@ def _check_for_missing_distances(visits: List[str], distances: Dict[Tuple[str, s
     return False
 
 
-def get_distance_matrix(customers: Dict[str, Customer], filename: Optional[str] = None) -> Dict[Tuple[str, str], float]:
+def get_distances(customers: Dict[str, Customer], filename: Optional[str] = None) -> Dict[Tuple[str, str], float]:
     """Uses OpenRouteService to compute the distance matrix.
 
     For each pair of customers in `customers`, computes the distance of the shortest route between them.
@@ -223,3 +230,48 @@ def get_distance_matrix(customers: Dict[str, Customer], filename: Optional[str] 
 
     return distance_dict
 
+
+def get_distance_matrix(visits: List[str], distances: Dict[Tuple[str, str], float]) -> List[List[float]]:
+    """Produces a distance matrix for the customers in `visits`."""
+
+    return [[distances[i,j] for j in visits] for i in visits]
+
+
+def get_route_geojson(route: List[Customer]):
+    
+    # Get the coordinates of our route, turn them into directions
+    coords = [(cust.lon, cust.lat) for cust in route]
+
+    # Instantiate our client to pull the directions.
+    osr_client = client.Client(key=OSR_API_KEY)
+    
+    request = {
+        'coordinates': coords,
+        'profile': 'driving-car',
+        'geometry': 'true',
+        'format_out': 'geojson',          
+    }
+
+    # Make the request, getting the directions as a geojson
+    result = osr_client.directions(**request)
+
+    return result
+
+
+def stringify_route(route:[List[Customer]]) -> str:
+    strd_route = [cust.out_dict for cust in route]
+    return strd_route
+
+
+def get_center_of_custs(visits: List[str], customers: Dict[str, Customer]) -> Tuple[float, float]:
+    """Gets the (lat, lon) of the center of the to-visit customers."""
+
+    to_visit = [(customers[cust_id].lat, customers[cust_id].lon) for cust_id in visits]
+    
+    # Tidy, but not super efficient implementation here.
+    # Could just do one sweep through, but unless we add way more customers, it
+    # shouldn't be a problem.
+    return (
+        (max(coords[0] for coords in to_visit) + min(coords[0] for coords in to_visit)) / 2,
+        (max(coords[1] for coords in to_visit) + min(coords[1] for coords in to_visit)) / 2,
+    )

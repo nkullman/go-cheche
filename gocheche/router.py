@@ -1,180 +1,221 @@
-import argparse
+from typing import Dict, List, Optional, Tuple
 import datetime
 import logging
-from typing import Dict, List, Tuple
+import os
+import time
 
-from gocheche.core import Customer
+from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import pywrapcp
+import folium
+import selenium.webdriver
+
 from gocheche import utils
+from gocheche.core import Customer, RunParams
+
+def create_model_data(
+    visits: List[str],
+    distances: Dict[Tuple[str, str], float],
+    params: RunParams
+) -> Dict:
+    """Create the data object necessary to execute the routing engine."""
+    data = {}
+    data['num_vehicles'] = params.n_routes
+    data['depot'] = 0  # Since we insert it into the zeroth index in utils.load_visits
+    data['distance_matrix'] = utils.get_distance_matrix(visits, distances)
+    return data
 
 
-def get_arg_parser() -> argparse.ArgumentParser:
-    """Builds our argument parser."""
-
-    # Initialize an argument parser.
-    parser = argparse.ArgumentParser(description="Does some CheChe routing.")
-
-    # Argument to take in the file with customer info (namely, addresses).
-    parser.add_argument(
-        '-c',
-        '--customers',
-        type=str,
-        default="data/customers.json",
-        help='Filename with customer info'
-    )
-
-    # Argument to take in the file with the list of customers to visit.
-    parser.add_argument(
-        '-v',
-        '--visit',
-        type=str,
-        default="data/visit.json",
-        help='Filename with the customers to be visited'
-    )
+def get_routes(data, manager, routing, solution, visits: List[str], customers: Dict[str, Customer]) -> List[List[Customer]]:
+    """Retrieves the routes from the solution."""
     
-    # Argument to take in the file with routing constraints (namely, which
-    # customers need to be served on which days).
-    parser.add_argument(
-        '-p',
-        '--params',
-        type=str,
-        default="data/run_params.json",
-        help='File with run paramaters (e.g., constraints)'
-    )
+    max_route_duration = 0
+    result = []
     
-    # Argument to take in the file with the distance (duration) matrix.
-    parser.add_argument(
-        '-d',
-        '--distances',
-        type=str,
-        default="data/distances.json",
-        help='Distance matrix file'
+    # Loop over routes.
+    for vehicle_id in range(data['num_vehicles']):
+
+        route = []
+
+        index = routing.Start(vehicle_id)
+        plan_output = f'Route {vehicle_id}:\n'
+        
+        route_duration = 0
+        while not routing.IsEnd(index):
+
+            # For the current stop in the route
+            route.append(customers[visits[manager.IndexToNode(index)]])
+            plan_output += f' {route[-1].name} -> '
+            previous_index = index
+
+            # And the next stop in the route.
+            index = solution.Value(routing.NextVar(index))
+            route_duration += routing.GetArcCostForVehicle(
+                previous_index,
+                index,
+                vehicle_id
+            )
+        
+        route.append(customers[visits[manager.IndexToNode(index)]])
+        plan_output += f'{route[-1].name}\n'
+        plan_output += f'Duration of the route: {str(datetime.timedelta(seconds=route_duration))}\n'
+        
+        # Log the result for this route.
+        logging.info(plan_output)
+        max_route_duration = max(route_duration, max_route_duration)
+
+        # Append it to our solution
+        result.append((route, route_duration))
+    
+    # Note the longest route
+    logging.info(f'Maximum route duration: {str(datetime.timedelta(seconds=max_route_duration))}')
+
+    return result
+
+
+def get_routing_solution(
+    visits: List[str],
+    customers: Dict[str, Customer],
+    distances: Dict[Tuple[str, str], float],
+    params: RunParams,
+    outname: Optional[str] = None,
+):
+    """TODO fill me out: docstrings, typing for output, function implementation..."""
+    
+    data = create_model_data(visits, distances, params)
+
+    # Create the routing index manager.
+    manager = pywrapcp.RoutingIndexManager(
+        len(data['distance_matrix']),
+        data['num_vehicles'],
+        data['depot']
     )
 
-    parser.add_argument(
-        '--get-distances',
-        action="store_true",
-        help="Whether to fetch a new distance matrix if any customers are missing in the distances file."
-    )
+    # Create Routing Model.
+    routing = pywrapcp.RoutingModel(manager)
 
-    # Argument to determine whether to write the solution to file.
-    parser.add_argument(
-        "-w",
-        "--write",
-        action="store_true",
-        help="Write output to file (specify name with -o)"
-    )
+    # Create and register a transit callback.
+    def distance_callback(from_index, to_index):
+        """Returns the distance between the two nodes."""
+        # Convert from routing variable Index to distance matrix NodeIndex.
+        from_node = manager.IndexToNode(from_index)
+        to_node = manager.IndexToNode(to_index)
+        return data['distance_matrix'][from_node][to_node]
 
-    # Argument to specify where to write solution.
-    parser.add_argument(
-        "-o",
-        "--output",
-        type = str,
-        default = "data/solution.txt",
-        help = (
-            "Name of file to which to write solution. "
-            "Default is '../data/solution.txt'"
+    transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+
+    # Define cost of each arc.
+    routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+
+    # Add duration constraint.
+    dimension_name = 'duration'
+    routing.AddDimension(
+        transit_callback_index,
+        0,  # no slack TODO
+        21600,  # vehicle maximum travel time (in the units of the distance matrix -- seconds)
+        True,
+        dimension_name)
+    duration_dimension = routing.GetDimensionOrDie(dimension_name)
+    duration_dimension.SetGlobalSpanCostCoefficient(100)
+
+    # Setting first solution heuristic.
+    search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+    search_parameters.first_solution_strategy = (
+        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+
+    # Solve the problem.
+    solution = routing.SolveWithParameters(search_parameters)
+
+    # If a solution was found...
+    if solution:
+        
+        # First log it and get the list-ified version.
+        routes = get_routes(data, manager, routing, solution, visits, customers)
+
+        # Then, if desired, save a text and picture version of the route to file.
+        if outname is not None:
+            
+            write_text_solution(routes, outname)
+            write_pict_solution(routes, outname, visits, customers)
+
+def write_text_solution(routes: List[List[Customer]], outname: str):
+    writeable_sol = {
+        "solution": [
+            {
+                "route": utils.stringify_route(route),
+                "duration": duration
+            }
+            for route, duration in routes
+        ]
+    }
+    utils.write_json(writeable_sol, outname)
+
+def write_pict_solution(routes, outname, visits, customers, win_size: Tuple[int, int] = (800, 1080)):
+
+    colors = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2']
+    
+    def style_function(color):
+        return lambda feature: dict(
+            color=color,
+            weight=3,
+            opacity=1
         )
-    )
-
-    return parser
-
-
-def fetch_data(args: argparse.Namespace) -> Tuple[List[str], Dict[str, Customer], Dict[Tuple[str, str], float], Dict]:
-    """Fetches the data in the files located in the locations indicated by `args`."""
-
-    # Loading all data files. We first start with the list of customers to visit
-    visits = utils.load_visits(args.visit)
-    logging.info("List of customers to visit retrieved.")
-    # Next we load all customer details.
-    customers = utils.load_customers(args.customers, to_visit=visits)
-    logging.info("Customer set retrieved.")
-    # Then the distances.
-    distances = utils.load_distances(args.distances)
-    logging.info("Distances retrieved.")
-    # And lastly the run parameters (constraints).
-    params = utils.load_params(args.params)
-    logging.info("Constraints file loaded.")
     
-    # Make sure our customers file contains all those we're trying to visit.
-    utils._ensure_no_missing_customers(visits, customers)
-    logging.info("Confirmed that all required customers are in the customers file.")
 
-    # Making sure our distances file contains distances for all customer pairs.
-    are_missing_distances = utils._check_for_missing_distances(visits, distances)
-    if are_missing_distances:
-        # If any distances are missing, we'll either fetch a new distances matrix.
-        # or just raise an error; whichever the user specified in args.
-        logging.info("Some distances were missing from the distances file.")
-        if args.get_distances:
-            logging.info("Fetching a new distance matrix for the customer set...")
-            distances = utils.get_distance_matrix(customers, args.distances)
+    html_outname = outname[:outname.rfind(".")]+"_map.html"
+    pict_outname = outname[:outname.rfind(".")]+".png"
+
+    map_center = utils.get_center_of_custs(visits, customers)
+
+    # Initialize the map
+    m = folium.Map(tiles='Stamen Toner', location=map_center, zoom_start = 12)
+
+    # Loop over routes, plotting each
+    for i, route_info in enumerate(routes):
+
+        route = route_info[0]
+        
+        # Get a geo-json representation of our route for plotting with folium
+        route_geojson = utils.get_route_geojson(route)
+
+        folium.features.GeoJson(
+            data=route_geojson,
+            name=f'Route {i}',
+            style_function=style_function(colors[i]),
+            overlay=True
+        ).add_to(m)
+
+    # Loop over the customers we're visiting and add an icon for them as well.
+    for i, visit in enumerate(visits):
+        lon, lat = customers[visit].get_coords()
+        name = customers[visit].name
+        popup = f"<strong>{name}</strong><br>Lat: {lat:.3f}<br>Long: {lon:.3f}"
+        if i==0:
+            # A home icon
+            icon = folium.map.Icon(
+                color='beige',
+                icon_color='white',
+                icon='home',
+                prefix='fa'
+            )
         else:
-            utils._find_missing_distances(visits, distances)
+            # A coffee icon
+            icon = folium.map.Icon(
+                color='beige',
+                icon_color='#4A2C29', # coffee brown
+                icon='coffee',
+                prefix='fa'
+            )
+        folium.map.Marker([lat, lon], icon=icon, popup=popup).add_to(m)
 
-    # TODO any checks needed on the constraints/params?
-    return visits, customers, distances, params
-
-
-def calculate_routes(data):
-    """TODO fill me out: docstrings, typing, function implementation..."""
-    print("I WAS GONNA DO SOME ROUTING, BUT THEN I DIDN'T. OOOO")
-    pass
-
-
-def main():
-    """Does some CheChe routing."""
-
-    # Grab the timestamp for when the run was initialized
-    now = datetime.datetime.now().strftime("%Y%m%d")
-
-    # Initialize a logger.
-    logging.basicConfig(filename=f'gocheche_{now}.log', level=logging.INFO)
-
-    # Initialize the argument parser and retrieve the passed arguments
-    parser = get_arg_parser()
-    args = parser.parse_args()
-
-    # If an output file was specified, then we're writing results to file.
-    if args.output:
-        args.write = True
-
-    # Fetch and check the data in the files given in args.
-    visits, customers, distances, params = fetch_data(args)
-
-    logging.info(f"""
-        *** GoCheChe input ***
-
-        Received arguments:
-
-            customers: {args.customers}
-            visit: {args.visit}
-            params: {args.params}
-            distances: {args.distances}
-            write: {args.write}
-            output: {args.output}
-
-        Customers to visit:
-
-            {[customers[cust_id].name for cust_id in visits]}
-
-    """)
+    m.save(html_outname)
     
-    # TODO figure out how this will actually work. Are there customers that have to be visited on certain days?
-    # Do we have complete control over who gets served on which days and in which order?
-    # Any other constraints we need to be mindful of?
-    # Does she have a "maximum outing" duration?
-    # If this is insufficiently useful, should we start trying to use Uber traffic data (free, but would require more finagling and would earn less precision)
-    # or Google Maps time-based data (costs money, but would be easier and more exact)?
-    # TODO reshape data into one big dict or something? then pass to the function, and in that function, implement this stuff:
-    # https://developers.google.com/optimization/routing/vrp
+    # prepare the option for the chrome driver
+    options = selenium.webdriver.ChromeOptions()
+    options.add_argument('headless')
+    options.add_argument(f"--window-size={win_size[0]},{win_size[1]}")
 
-    # Do the routing
-    solution = calculate_routes(None)
-
-    # TODO Write the solution/print it/...?
-
-    return
-
-
-if __name__ == "__main__":
-    main()
+    webber = selenium.webdriver.Chrome(options=options)
+    webber.get(f"file:///{os.path.abspath(html_outname)}")
+    webber.save_screenshot(pict_outname)
+    webber.quit()
+    os.remove(html_outname)

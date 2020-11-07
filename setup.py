@@ -26,7 +26,7 @@ setuptools.setup(
     python_requires='>=3.7',
     entry_points={
         'console_scripts': [
-            'gocheche=gocheche.router:main',
+            'gocheche=gocheche.runner:main',
             # 'frvcpy-translate=frvcpy.translator:main',
             # 'frvcpy-test=frvcpy.test.test:runAll'
         ],
