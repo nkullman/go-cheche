@@ -1,14 +1,5 @@
 {
-    "n_routes": 2,
+    "n_routes": 1,
     "constraints": {
-        "customers_on_days": {
-            "day1": [
-                "000001"
-            ],
-            "day2": [
-                "000001",
-                "000004"
-            ]
-        }
     }
 }
