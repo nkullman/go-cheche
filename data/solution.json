@@ -8,9 +8,29 @@
                     "Address": "9817 55th Ave S, Seattle, WA 98118"
                 },
                 {
-                    "Name": "CheChe Top Google Address",
-                    "ID": "000001",
-                    "Address": "821 2nd Ave #402, Seattle, WA 98104"
+                    "Name": "Random Beacon Hill 4",
+                    "ID": "000011",
+                    "Address": "1759 S Dawson St, Seattle, WA 98108"
+                },
+                {
+                    "Name": "Random Beacon Hill 5",
+                    "ID": "000012",
+                    "Address": "4900 25th Ave S, Seattle, WA 98108"
+                },
+                {
+                    "Name": "Random Beacon Hill 3",
+                    "ID": "000010",
+                    "Address": "2316 15th Ave S, Seattle, WA 98144"
+                },
+                {
+                    "Name": "Random Beacon Hill 1",
+                    "ID": "000008",
+                    "Address": "2001 S Plum St, Seattle, WA 98144"
+                },
+                {
+                    "Name": "Random Beacon Hill 2",
+                    "ID": "000009",
+                    "Address": "2850 S Bayview St, Seattle, WA 98144"
                 },
                 {
                     "Name": "Alissa Rothchild",
@@ -18,12 +38,27 @@
                     "Address": "3123 35th Ave S, Seattle, WA 98144"
                 },
                 {
+                    "Name": "Random Madrona 1",
+                    "ID": "000006",
+                    "Address": "3698 E Pine St Seattle, WA 98122"
+                },
+                {
+                    "Name": "Random Madrona 2 (Bottlehouse)",
+                    "ID": "000007",
+                    "Address": "1416 34th Ave, Seattle, WA 98122"
+                },
+                {
+                    "Name": "CheChe Top Google Address",
+                    "ID": "000001",
+                    "Address": "821 2nd Ave #402, Seattle, WA 98104"
+                },
+                {
                     "Name": "CheChe Depot (Kubota Gardens)",
                     "ID": "000000",
                     "Address": "9817 55th Ave S, Seattle, WA 98118"
                 }
             ],
-            "duration": 2418
+            "duration": 3903
         },
         {
             "route": [
@@ -31,6 +66,11 @@
                     "Name": "CheChe Depot (Kubota Gardens)",
                     "ID": "000000",
                     "Address": "9817 55th Ave S, Seattle, WA 98118"
+                },
+                {
+                    "Name": "Seattle Childrens",
+                    "ID": "000005",
+                    "Address": "4800 Sand Point Way NE, Seattle, WA 98105"
                 },
                 {
                     "Name": "Nick Kullman",
@@ -48,7 +88,7 @@
                     "Address": "9817 55th Ave S, Seattle, WA 98118"
                 }
             ],
-            "duration": 2511
+            "duration": 3976
         }
     ]
 }
