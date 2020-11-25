@@ -30,8 +30,11 @@ wheels/
 # vscode
 .vscode/
 
-# API keys
+## Sensitive things:
+# 1) API keys
 data/api_key.py
+# 2) Customer info
+data/customers.json
 
 # Logs
 *.log
@@ -41,3 +44,5 @@ chromedriver.exe
 
 # Notes to self
 notes.md
+
+# 
