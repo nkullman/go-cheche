@@ -35,6 +35,11 @@ wheels/
 data/api_key.py
 # 2) Customer info
 data/customers.json
+# 3) Temp customer info
+data/customers.csv
+
+# Temp list of customer IDs that need routing
+data/visit.json
 
 # Logs
 *.log
