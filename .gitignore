@@ -51,4 +51,5 @@ chromedriver.exe
 # Notes to self
 notes.md
 
-# 
+# Customer database
+customers_db.json
