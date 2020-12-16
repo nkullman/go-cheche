@@ -83,7 +83,24 @@ def get_routing_solution(
     params: RunParams,
     outname: str,
 ):
-    """TODO fill me out: docstrings, typing for output, function implementation..."""
+    """Performs routing and prints a solution.
+
+    Minimizes travel time, ensuring that each customer in visits is visited
+    exactly once.
+    
+    Inputs:
+
+        visits: List of customer IDs that need to be visited
+        
+        customers: Dict of customers, keyed on their IDs.
+        
+        distances: Dict of distances, keyed on (origin, destination) customer ID pairs
+        
+        params: RunParams object noting parameters for the run
+        
+        outname: Name of the file where results should be stored.
+
+    """
     
     data = create_model_data(visits, distances, params)
 
@@ -114,8 +131,8 @@ def get_routing_solution(
     dimension_name = 'duration'
     routing.AddDimension(
         transit_callback_index,
-        0,  # no slack TODO
-        21600,  # vehicle maximum travel time (in the units of the distance matrix -- seconds)
+        0,  # no slack
+        28800,  # vehicle maximum travel time (8 hr in s, the unit used in the distance matrix)
         True,
         dimension_name)
     duration_dimension = routing.GetDimensionOrDie(dimension_name)
