@@ -66,8 +66,8 @@ class RunParams():
 
     def __init__(
         self,
-        constraints: Dict,
-        n_routes: int,
+        constraints: Optional[Dict]=None,
+        n_routes: Optional[int]=None,
     ):
         """Creates a RunParams object.
         
@@ -78,5 +78,5 @@ class RunParams():
 
         """
 
-        self.constraints = constraints
-        self.n_routes = n_routes
+        self.constraints = constraints if constraints is not None else {}
+        self.n_routes = n_routes if n_routes is not None else 1
