@@ -34,7 +34,8 @@ wheels/
 # 1) API keys
 data/api_key.py
 # 2) Customer info
-data/customers.json
+data/*.csv
+data/*.json
 # 3) Temp customer info
 data/customers.csv
 
