@@ -1,3 +1,3 @@
-# Go-CheChe
+# Go-CheChe: Faster Coffee
 
-A simple coffee routing solution.
+A simple single-vehicle routing engine.
