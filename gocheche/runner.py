@@ -17,7 +17,7 @@ def get_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         'visit',
         type=str,
-        help='Name of file with info for customers that need to be visited.'
+        help='Name of CSV file with info for customers that need to be visited.'
     )
     
     # Argument to specify where to write solution.
