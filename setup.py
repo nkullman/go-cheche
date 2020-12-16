@@ -13,10 +13,6 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/nkullman/go-cheche',
     packages=setuptools.find_packages(),
-    # install_requires=['xmltodict'],
-    # package_data={
-    #     "frvcpy.test": ["data/*"],
-    # },
     license='Apache',
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -27,8 +23,6 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'gocheche=gocheche.runner:main',
-            # 'frvcpy-translate=frvcpy.translator:main',
-            # 'frvcpy-test=frvcpy.test.test:runAll'
         ],
     }
 )

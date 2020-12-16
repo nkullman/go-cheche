@@ -32,12 +32,7 @@ wheels/
 
 ## Sensitive things:
 # 1) API keys
-data/api_key.py
-# 2) Customer info
-data/*.csv
-data/*.json
-# 3) Temp customer info
-data/customers.csv
+data/api_key.*
 
 # Temp list of customer IDs that need routing
 data/visit.json
@@ -45,14 +40,11 @@ data/visit.json
 # Logs
 *.log
 
-# Our webdriver, used to save our map as an image
-chromedriver.exe
-
 # Notes to self
 notes.md
 
 # Customer database
-customers_db.json
+data/customers_db.json
 
 # Solution files
 solution.*
