@@ -12,6 +12,10 @@ import selenium.webdriver
 from gocheche import utils
 from gocheche.core import Customer, RunParams
 
+
+DO_PICTURE_OUTPUT = False
+
+
 def create_model_data(
     visits: List[str],
     distances: Dict[Tuple[str, str], float],
@@ -77,7 +81,7 @@ def get_routing_solution(
     customers: Dict[str, Customer],
     distances: Dict[Tuple[str, str], float],
     params: RunParams,
-    outname: Optional[str] = None,
+    outname: str,
 ):
     """TODO fill me out: docstrings, typing for output, function implementation..."""
     
@@ -132,23 +136,67 @@ def get_routing_solution(
         # First log it and get the list-ified version.
         routes = get_routes(data, manager, routing, solution, visits, customers)
 
-        # Then, if desired, save a text and picture version of the route to file.
-        if outname is not None:
-            
-            write_text_solution(routes, outname)
+        # Then, save it to file
+        write_text_solution(routes, outname)
+        if DO_PICTURE_OUTPUT:
             write_pict_solution(routes, outname, visits, customers)
+    
+    else:
+        logging.warning("NO SOLUTION COULD BE FOUND")
 
 def write_text_solution(routes: List[List[Customer]], outname: str):
-    writeable_sol = {
-        "solution": [
-            {
-                "route": utils.stringify_route(route),
-                "duration": duration
-            }
-            for route, duration in routes
-        ]
-    }
-    utils.write_json(writeable_sol, outname)
+    
+    if outname.endswith('.json'):
+        
+        writeable_sol_json = {
+            "solution": [
+                {
+                    "route": utils.stringify_route(route),
+                    "duration": duration
+                }
+                for route, duration in routes
+            ]
+        }
+        utils.write_json(writeable_sol, outname)
+
+        logging.info(writeable_sol_json)
+        print(writeable_sol_json)
+    
+    else:
+        writeable_sol_txt = ""
+        
+        for i, route in enumerate(routes):
+            writeable_sol_txt += f"""
+
+            *******************
+            *** ROUTE {i+1}
+            *******************
+            """
+
+            for j, cust in enumerate(route[0]):
+                # Don't need to print the return to the depot
+                if j >= len(route[0]) - 1:
+                    break
+                
+                writeable_sol_txt += f"""
+                    {j+1}.
+                        Name: {cust.name}
+                        Address: {cust.address}
+                
+                """
+
+            writeable_sol_txt += """
+
+            --- end of route ---
+
+            """
+
+        with open(outname, 'w') as outfile:
+            outfile.write(writeable_sol_txt)
+
+        logging.info(writeable_sol_txt)
+        print(writeable_sol_txt)
+
 
 def write_pict_solution(routes, outname, visits, customers, win_size: Tuple[int, int] = (800, 1080)):
 
