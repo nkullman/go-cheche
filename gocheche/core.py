@@ -3,8 +3,6 @@ import datetime
 import logging
 from typing import Dict, Optional, Tuple
 
-import geocoder
-
 
 class Customer():
     """Defines a customer: address, customer number, lat/long, whether it is in need of delivery, delivery date, delivery order."""

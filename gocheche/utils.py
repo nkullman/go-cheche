@@ -5,7 +5,7 @@ import json
 import logging
 import os
 
-from openrouteservice import client, directions, distance_matrix
+from openrouteservice import client, distance_matrix
 import geocoder
 import usaddress
 

@@ -13,6 +13,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/nkullman/go-cheche',
     packages=setuptools.find_packages(),
+    install_requires=['geocoder', 'openrouteservice', 'ortools', 'usaddress'],
     license='Apache',
     classifiers=[
         "Programming Language :: Python :: 3",
