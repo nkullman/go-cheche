@@ -1,7 +1,7 @@
 import argparse
 import datetime
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import geocoder
 
@@ -43,12 +43,18 @@ class Customer():
         self.visit = visit
         self.delivery_day = delivery_day
         self.delivery_order = delivery_order
-        self.out_dict = {
+
+    @property
+    def out_dict(self):
+        return {
             'Name': self.name,
             'ID': self.cust_id,
             'Address': self.address,
         }
-
+    
+    def __str__(self) -> str:
+        return f"{self.name}; {self.address}"
+    
     def get_coords(self, lat_first: bool = False) -> Tuple[float, float]:
         """Returns the customer's coordinates.
 
