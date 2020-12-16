@@ -6,14 +6,9 @@ import time
 
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
-import folium
-import selenium.webdriver
 
 from gocheche import utils
 from gocheche.core import Customer, RunParams
-
-
-DO_PICTURE_OUTPUT = False
 
 
 def create_model_data(
@@ -155,8 +150,6 @@ def get_routing_solution(
 
         # Then, save it to file
         write_text_solution(routes, outname)
-        if DO_PICTURE_OUTPUT:
-            write_pict_solution(routes, outname, visits, customers)
     
     else:
         logging.warning("NO SOLUTION COULD BE FOUND")
@@ -213,75 +206,3 @@ def write_text_solution(routes: List[List[Customer]], outname: str):
 
         logging.info(writeable_sol_txt)
         print(writeable_sol_txt)
-
-
-def write_pict_solution(routes, outname, visits, customers, win_size: Tuple[int, int] = (800, 1080)):
-
-    colors = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2']
-    
-    def style_function(color):
-        return lambda feature: dict(
-            color=color,
-            weight=3,
-            opacity=1
-        )
-    
-
-    html_outname = outname[:outname.rfind(".")]+"_map.html"
-    pict_outname = outname[:outname.rfind(".")]+".png"
-
-    map_center = utils.get_center_of_custs(visits, customers)
-
-    # Initialize the map
-    m = folium.Map(tiles='Stamen Toner', location=map_center, zoom_start = 12)
-
-    # Loop over routes, plotting each
-    for i, route_info in enumerate(routes):
-
-        route = route_info[0]
-        
-        # Get a geo-json representation of our route for plotting with folium
-        route_geojson = utils.get_route_geojson(route)
-
-        folium.features.GeoJson(
-            data=route_geojson,
-            name=f'Route {i}',
-            style_function=style_function(colors[i]),
-            overlay=True
-        ).add_to(m)
-
-    # Loop over the customers we're visiting and add an icon for them as well.
-    for i, visit in enumerate(visits):
-        lon, lat = customers[visit].get_coords()
-        name = customers[visit].name
-        popup = f"<strong>{name}</strong><br>Lat: {lat:.3f}<br>Long: {lon:.3f}"
-        if i==0:
-            # A home icon
-            icon = folium.map.Icon(
-                color='beige',
-                icon_color='white',
-                icon='home',
-                prefix='fa'
-            )
-        else:
-            # A coffee icon
-            icon = folium.map.Icon(
-                color='beige',
-                icon_color='#4A2C29', # coffee brown
-                icon='coffee',
-                prefix='fa'
-            )
-        folium.map.Marker([lat, lon], icon=icon, popup=popup).add_to(m)
-
-    m.save(html_outname)
-    
-    # prepare the option for the chrome driver
-    options = selenium.webdriver.ChromeOptions()
-    options.add_argument('headless')
-    options.add_argument(f"--window-size={win_size[0]},{win_size[1]}")
-
-    webber = selenium.webdriver.Chrome(options=options)
-    webber.get(f"file:///{os.path.abspath(html_outname)}")
-    webber.save_screenshot(pict_outname)
-    webber.quit()
-    os.remove(html_outname)
