@@ -55,21 +55,38 @@ def get_arg_parser() -> argparse.ArgumentParser:
         help='File with run paramaters (e.g., constraints)'
     )
 
+    parser.add_argument(
+        '-a',
+        '--api',
+        type=str,
+        default="data/api_key.json",
+        help="File with API key for OSR",
+    )
+
     return parser
 
 
-def fetch_data(args: argparse.Namespace) -> Tuple[List[str], Dict[str, Customer], Dict[Tuple[str, str], float], RunParams]:
+def fetch_data(args: argparse.Namespace) -> Tuple[
+    List[str],
+    Dict[str, Customer],
+    Dict[Tuple[str, str], float],
+    RunParams,
+    str
+]:
     """Fetches the data in the files located in the locations indicated by `args`."""
 
+    # Before we do anything, load the API key from file
+    api_key = utils.get_api_key(args.api)
+    
     # Loading all data files. We first start with the list of customers to visit
-    customers, visits, distances = utils.load_customers(args.visit, args.customers)
+    customers, visits, distances = utils.load_customers(api_key, args.visit, args.customers)
     logging.info("Customers and distances retrieved.")
     
     # And lastly the run parameters (constraints).
     params = utils.load_params(args.params)
     logging.info("Constraints file loaded.")
     
-    return visits, customers, distances, params
+    return visits, customers, distances, params, api_key
 
 
 def main():

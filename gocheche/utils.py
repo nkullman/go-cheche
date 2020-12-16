@@ -9,12 +9,10 @@ from openrouteservice import client, directions, distance_matrix
 import geocoder
 import usaddress
 
-from data import api_key
 from gocheche.core import Customer, RunParams
 
 
 DEPOT_CUST_ID = "000000"
-OSR_API_KEY = api_key.MY_OSR_API_KEY
 NAME_COL_IDX = 0
 ADDRESS_COL_IDX = 6
 
@@ -102,6 +100,7 @@ def load_known_customer_data(customers_filename: str) -> Tuple[List[Customer], D
 
 
 def load_customers(
+    api_key: str,
     visits_filename: str,
     customers_filename: Optional[str],
 ) -> Tuple[Dict[str, Customer], List, Dict[Tuple[str, str], float]]:
@@ -169,7 +168,7 @@ def load_customers(
                 cust = Customer(cust_id, name, address, lat, lon, True)
 
                 # Get the distances to/from this new customer from/to the known customers
-                new_dists = get_dists_to_from_new_cust(cust, known_customers)
+                new_dists = get_dists_to_from_new_cust(cust, known_customers, api_key)
                 logging.info(f"Distances for {name} retrieved.")
                 
                 # Write this new customer to the customer file
@@ -277,12 +276,14 @@ def load_params(params_filename: str) -> Dict:
 def get_dists_to_from_new_cust(
     customer: Customer,
     known_customers: List[Customer],
+    osr_api_key: str,
 ) -> Dict[Tuple[str, str], float]:
     """Gets distances to/from a new customer from/to the list of known customers.
 
     Args:
         customer: the new customer
         known_customers: known customers
+        osr_api_key: API key to access openservice routing 
 
     Returns:
         Distances dictionary with pairwise distances between the new and known customers.
@@ -294,7 +295,7 @@ def get_dists_to_from_new_cust(
         return {(customer.cust_id, customer.cust_id): 0.0}
 
     # Instantiate our client to pull the distance matrix.
-    osr_client = client.Client(key=OSR_API_KEY)
+    osr_client = client.Client(key=osr_api_key)
 
     # Get the list of customer coordinates, along with their IDs.
     # Note that they're in (lon, lat) order instead of (lat, lon).
@@ -342,41 +343,12 @@ def get_distance_matrix(visits: List[str], distances: Dict[Tuple[str, str], floa
     return [[distances[i,j] for j in visits] for i in visits]
 
 
-def get_route_geojson(route: List[Customer]):
-    
-    # Get the coordinates of our route, turn them into directions
-    coords = [(cust.lon, cust.lat) for cust in route]
-
-    # Instantiate our client to pull the directions.
-    osr_client = client.Client(key=OSR_API_KEY)
-    
-    request = {
-        'coordinates': coords,
-        'profile': 'driving-car',
-        'geometry': 'true',
-        'format_out': 'geojson',          
-    }
-
-    # Make the request, getting the directions as a geojson
-    result = osr_client.directions(**request)
-
-    return result
-
-
 def stringify_route(route:[List[Customer]]) -> str:
     stringified_route = [cust.out_dict for cust in route]
     return stringified_route
 
 
-def get_center_of_custs(visits: List[str], customers: Dict[str, Customer]) -> Tuple[float, float]:
-    """Gets the (lat, lon) of the center of the to-visit customers."""
-
-    to_visit = [(customers[cust_id].lat, customers[cust_id].lon) for cust_id in visits]
-    
-    # Tidy, but not super efficient implementation here.
-    # Could just do one sweep through, but unless we add way more customers, it
-    # shouldn't be a problem.
-    return (
-        (max(coords[0] for coords in to_visit) + min(coords[0] for coords in to_visit)) / 2,
-        (max(coords[1] for coords in to_visit) + min(coords[1] for coords in to_visit)) / 2,
-    )
+def get_api_key(filename: str) -> str:
+    """Gets the API key stored in the JSON file under key "key"."""
+    file_contents = load_json(filename)
+    return file_contents["key"]
