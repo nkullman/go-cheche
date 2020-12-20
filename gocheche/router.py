@@ -155,6 +155,10 @@ def get_routing_solution(
         logging.warning("NO SOLUTION COULD BE FOUND")
 
 def write_text_solution(routes: List[List[Customer]], outname: str):
+
+    # If no output name was passed, then we'll be dumping a "Coffee Route.txt" file on the desktop
+    if len(outname) == 0:
+        outname = os.path.join(utils.get_known_path(path_type="desktop"), "Coffee Route.txt")
     
     if outname.endswith('.json'):
         

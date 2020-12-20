@@ -15,8 +15,10 @@ def get_arg_parser() -> argparse.ArgumentParser:
 
     # Argument to take in the file with the list of customers to visit.
     parser.add_argument(
-        'visit',
+        "-v",
+        '--visit',
         type=str,
+        default="",
         help='Name of CSV file with info for customers that need to be visited.'
     )
     
@@ -25,10 +27,10 @@ def get_arg_parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         type = str,
-        default = "solution.txt",
+        default = "",
         help = (
             "Name of file to which to write solution. "
-            "Default is 'solution.txt'"
+            "Default is to create a 'Coffee Route.txt' file on the desktop."
         )
     )
 
@@ -71,7 +73,6 @@ def fetch_data(args: argparse.Namespace) -> Tuple[
     Dict[str, Customer],
     Dict[Tuple[str, str], float],
     RunParams,
-    str
 ]:
     """Fetches the data in the files located in the locations indicated by `args`."""
 
@@ -86,7 +87,7 @@ def fetch_data(args: argparse.Namespace) -> Tuple[
     params = utils.load_params(args.params)
     logging.info("Constraints file loaded.")
     
-    return visits, customers, distances, params, api_key
+    return visits, customers, distances, params
 
 
 def main():

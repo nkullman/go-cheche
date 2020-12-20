@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 import ast
 import csv
+import glob
 import json
 import logging
 import os
@@ -121,6 +122,11 @@ def load_customers(
             then we add them to the file, along with their distances.
 
     """
+
+    # If no visits filename was provided, we assume it was the last modified CSV
+    # in the downloads directory:
+    if len(visits_filename) == 0:
+        visits_filename = get_last_modded_csv(get_known_path(path_type="downloads"))
 
     # Read in the file that contains known customers and their details.
     known_customers, distances_dict = load_known_customer_data(customers_filename)
@@ -352,3 +358,19 @@ def get_api_key(filename: str) -> str:
     """Gets the API key stored in the JSON file under key "key"."""
     file_contents = load_json(filename)
     return file_contents["key"]
+
+
+def get_last_modded_csv(directory: str) -> str:
+    """Returns the name of the most recently modified CSV in `directory`."""
+    glob_pattern = os.path.join(directory,"*.csv")
+    list_of_files = glob.glob(glob_pattern)
+    return max(list_of_files, key=os.path.getmtime)
+
+
+def get_known_path(path_type: str = "downloads") -> str:
+    """Returns known default paths for Linux or Windows"""
+    
+    if path_type.lower() not in ['desktop', 'downloads']:
+        raise ValueError("Invalid path_type. Must be either 'desktop' or 'downloads'.")
+    
+    return os.path.join(os.path.expanduser("~"), path_type.lower())
