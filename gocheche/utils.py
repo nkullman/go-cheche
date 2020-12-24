@@ -213,7 +213,7 @@ def load_customers(
 
     # Similarly, if the depot is not in our dictionary of customers, then add it now
     if DEPOT_CUST_ID not in cust_dict.keys():
-        depot_cust = get_known_customer_by_id(DEPOT_CUST_ID)
+        depot_cust = get_known_customer_by_id(DEPOT_CUST_ID, known_customers)
         if depot_cust is None:
             raise ValueError(f"Customer info is required but could not be found for the depot location (ID {DEPOT_CUST_ID}).")
         cust_dict[DEPOT_CUST_ID] = depot_cust
