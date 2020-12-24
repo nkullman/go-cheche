@@ -86,6 +86,15 @@ def get_known_customer(name: str, address: str, customers: List[Customer], visit
     return None
 
 
+def get_known_customer_by_id(id: str, customers: List[Customer]) -> Optional[Customer]:
+    for customer in customers:
+        if customer.cust_id == id:
+            return customer
+    
+    # No such customer found.
+    return None
+
+
 def load_known_customer_data(customers_filename: str) -> Tuple[List[Customer], Dict[Tuple[str, str], float]]:
     """Loads the list of known customers from customers_filename."""
 
@@ -201,6 +210,13 @@ def load_customers(
         visits.insert(0, DEPOT_CUST_ID)
     # ^^ NOTE: Other methods (router.create_model_data) assume depot is in the first slot.
     # Beware of changing this in the future.
+
+    # Similarly, if the depot is not in our dictionary of customers, then add it now
+    if DEPOT_CUST_ID not in cust_dict.keys():
+        depot_cust = get_known_customer_by_id(DEPOT_CUST_ID)
+        if depot_cust is None:
+            raise ValueError(f"Customer info is required but could not be found for the depot location (ID {DEPOT_CUST_ID}).")
+        cust_dict[DEPOT_CUST_ID] = depot_cust
     
     if len(visits) != len(set(visits)):
         return ValueError("Some customers are duplicated in the visits file.")
