@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 import ast
 import csv
 import glob
@@ -18,21 +18,6 @@ NAME_COL_IDX = 0
 ADDRESS_COL_IDX = 6
 
 
-def get_latlon(address: str) -> Tuple[float, float]:
-    """Retrieves (latitude, longitude) for the given customer."""
-    
-    if not address:
-        raise ValueError(
-            f"No (lat, lon) can be generated from address '{address}'."
-        )
-
-    logging.info(f"Geocoding the following address:\n\t{address}")
-    
-    g = geocoder.osm(address)
-
-    return (g.json['lat'], g.json['lng'])
-
-
 def load_json(filename: str) -> Dict:
     """Returns the JSON file's contents as a dict."""
     
@@ -47,29 +32,81 @@ def write_json(obj_to_write: Any, filename: str):
         json.dump(obj_to_write, json_file, indent=4)
 
 
-def parse_address(address: str) -> str:
-    """Provides a geocodable version of `address`."""
+def ordinal(n: Union[str, int]) -> str:
+    return "%d%s" % (int(n),"tsnrhtdd"[(int(n)//10%10!=1)*(int(n)%10<4)*int(n)%10::4])
+
+def get_address(address: str) -> Tuple[str, str, str]:
+    """Gets a geocodable version of `address`, plus its latitude and longitude."""
+
+    # Try to geocode the address as given
+    g = geocoder.osm(address)
+
+    if g.json is not None:
+
+        # Geocoding was successful. Return the result
+        return (
+            # First part is a nicely formatted address
+            f"{g.json['housenumber']} {g.json['street']}, {g.json['city']}, {g.json['state']} {g.json['postal']}",
+            # Second is the latitude
+            g.json['lat'],
+            # And third is the longitude
+            g.json['lng']
+        )
+
+    # Geocoding was unsuccessful.
+    # Let's try to create a cleaner address by first parsing out the pieces we need, then try again.
     
+    # Parsing the address components...
     parsed, addr_type = usaddress.tag(address)
     if addr_type != "Street Address":
         raise ValueError(f"Address could not be properly parsed. Resulting type: {addr_type}. Result: \n{parsed}")
     
-    # Trim off any whitespace
+    # Trim off any whitespace from the parsed components.
     for part in parsed:
         parsed[part] = parsed[part].strip()
+
+    reqd_address_parts = ['AddressNumber', 'StreetName', 'PlaceName']
+    if any(address_part not in parsed for address_part in reqd_address_parts):
+        raise ValueError(f"The address must have at least a house number, street, and city.")
     
-    # Initialize the result with the address (aka house/street) number
-    result = parsed['AddressNumber']
+    # Initialize the resulting address string with the address number (aka house/street number)
+    new_address = parsed['AddressNumber']
+    
+    # If the streetname is just a number, make it ordinal
+    if parsed['StreetName'].isnumeric():
+        parsed['StreetName'] = ordinal(parsed['StreetName'])
     
     # Get the whole street name
     for k, v in [(k, v) for k, v in parsed.items() if k.startswith("StreetName")]:
-        result += f" {v}"
+        new_address += f" {v}"
     
-    # Add the city, state, and zip.
-    result += f", {parsed['PlaceName']}, {parsed['StateName']} {parsed['ZipCode']}"
+    # Add the city...
+    new_address += f", {parsed['PlaceName']}"
+    # Add the state, if it exists
+    if 'StateName' in parsed:
+        new_address += f", {parsed['StateName']}"
+    # And the zip code, if it exists
+    if 'ZipCode' in parsed:
+        new_address += f" {parsed['ZipCode']}"
     
-    # Done.
-    return result
+    # Now try to geocode this improved address
+    g = geocoder.osm(new_address)
+
+    if g.json is not None:
+
+        # Geocoding was successful. Return the result
+        return (
+            # First part is a nicely formatted address
+            f"{g.json['housenumber']} {g.json['street']}, {g.json['city']}, {g.json['state']} {g.json['postal']}",
+            # Second is the latitude
+            g.json['lat'],
+            # And third is the longitude
+            g.json['lng']
+        )
+    
+    # Still can't geocode the address. Throw an error
+    else:
+        raise ValueError(f"Could not geocode this address: {address}")
 
 
 def get_known_customer(name: str, address: str, customers: List[Customer], visit: bool=True) -> Optional[Customer]:
@@ -159,7 +196,7 @@ def load_customers(
 
             # Read its information from the row
             name = row[NAME_COL_IDX]
-            address = parse_address(row[ADDRESS_COL_IDX])
+            address, lat, lon = get_address(row[ADDRESS_COL_IDX])
 
             # It's in the visits file, so we know it needs to be visited.
             visit = True
@@ -175,10 +212,6 @@ def load_customers(
                 next_cust_id += 1
                 logging.info(f"{name} given customer ID {cust_id}")
                 
-                # Get the customer's lat/long
-                lat, lon = get_latlon(address)
-                logging.info(f"Lat/lon found for {name}.")
-
                 # Create a Customer object for this customer
                 cust = Customer(cust_id, name, address, lat, lon, True)
 
