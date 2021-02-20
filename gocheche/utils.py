@@ -15,7 +15,7 @@ from gocheche.core import Customer, RunParams
 
 DEPOT_CUST_ID = "000000"
 NAME_COL_IDX = 0
-ADDRESS_COL_IDX = 6
+ADDRESS_COL_IDX = 1
 
 
 def load_json(filename: str) -> Dict:
