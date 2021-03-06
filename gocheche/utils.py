@@ -35,6 +35,9 @@ def write_json(obj_to_write: Any, filename: str):
 def ordinal(n: Union[str, int]) -> str:
     return "%d%s" % (int(n),"tsnrhtdd"[(int(n)//10%10!=1)*(int(n)%10<4)*int(n)%10::4])
 
+def good_geocoder_result(g_json) -> bool:
+    return all(key in g_json for key in ('housenumber', 'street', 'city', 'state', 'postal', 'lat', 'lng'))
+
 def get_address(address: str) -> Tuple[str, str, str]:
     """Gets a geocodable version of `address`, plus its latitude and longitude."""
 
@@ -43,15 +46,25 @@ def get_address(address: str) -> Tuple[str, str, str]:
 
     if g.json is not None:
 
-        # Geocoding was successful. Return the result
-        return (
-            # First part is a nicely formatted address
-            f"{g.json['housenumber']} {g.json['street']}, {g.json['city']}, {g.json['state']} {g.json['postal']}",
-            # Second is the latitude
-            g.json['lat'],
-            # And third is the longitude
-            g.json['lng']
-        )
+        # TODO this is inefficient and hacky
+
+        # First thing we attempt if the result isn't complete is just to
+        # add the housenumber (often the issue).
+        if not good_geocoder_result(g.json):
+            g.json['housenumber'] = usaddress.tag(address)[0]['AddressNumber']
+
+        # If the result is now good, return it
+        if good_geocoder_result(g.json):
+
+            # Geocoding was successful. Return the result
+            return (
+                # First part is a nicely formatted address
+                f"{g.json['housenumber']} {g.json['street']}, {g.json['city']}, {g.json['state']} {g.json['postal']}",
+                # Second is the latitude
+                g.json['lat'],
+                # And third is the longitude
+                g.json['lng']
+            )
 
     # Geocoding was unsuccessful.
     # Let's try to create a cleaner address by first parsing out the pieces we need, then try again.
@@ -191,7 +204,20 @@ def load_customers(
 
     # Read in the CSV that contains the details of the customers to be visited
     with open(visits_filename) as csvfile:
+
+        # Should we skip the first row
+        has_header = csv.Sniffer().has_header(csvfile.read(2048))
+
+        # Set our reader back at the beginning.
+        csvfile.seek(0)
+
+        # Now begin reading the file
         rowreader = csv.reader(csvfile)
+
+        # Skip the header row if need be
+        if has_header:
+            next(rowreader)
+        
         for row in rowreader:
 
             # Read its information from the row
